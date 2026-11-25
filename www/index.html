@@ -1,0 +1,1107 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#070D19" />
+  <title>Sakuin</title>
+  <style>
+    :root {
+      --bg-main: #070D19;
+      --bg-card: #0F1A2E;
+      --bg-elevated: #15233D;
+      --border: #1E2F4D;
+      --primary: #38BDF8;
+      --primary-glow: rgba(56, 189, 248, 0.25);
+      --income: #34D399;
+      --expense: #F87171;
+      --warning: #FBBF24;
+      --text-main: #F1F5F9;
+      --text-muted: #94A3B8;
+      --text-dim: #64748B;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: system-ui, -apple-system, Roboto, sans-serif;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+
+    input, select { user-select: text; }
+
+    body {
+      background: var(--bg-main);
+      color: var(--text-main);
+      padding-bottom: 88px;
+      overflow-x: hidden;
+    }
+
+    /* PIN Lock Screen */
+    #pinOverlay {
+      display: none; position: fixed; inset: 0; background: var(--bg-main); z-index: 200;
+      flex-direction: column; align-items: center; justify-content: center; padding: 24px;
+    }
+    #pinOverlay.active { display: flex; }
+    .pin-dots { display: flex; gap: 14px; margin: 22px 0 32px; }
+    .pin-dot { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--primary); transition: 0.15s; }
+    .pin-dot.filled { background: var(--primary); box-shadow: 0 0 12px var(--primary); }
+    .numpad { display: grid; grid-template-columns: repeat(3, 74px); gap: 14px; }
+    .num-btn {
+      height: 62px; border-radius: 18px; background: var(--bg-card); border: 1px solid var(--border);
+      color: var(--text-main); font-size: 22px; font-weight: 700; cursor: pointer;
+    }
+    .num-btn:active { background: var(--primary); color: #041221; }
+
+    /* Header */
+    header {
+      padding: 14px 18px;
+      display: flex; justify-content: space-between; align-items: center;
+      background: rgba(7, 13, 25, 0.94);
+      border-bottom: 1px solid var(--border);
+      position: sticky; top: 0; z-index: 20;
+    }
+    .brand { display: flex; align-items: center; gap: 10px; }
+    .brand img { width: 28px; height: 28px; border-radius: 7px; }
+    .brand h1 { font-size: 18px; font-weight: 800; letter-spacing: 0.3px; }
+    .sync-badge {
+      font-size: 11px; font-weight: 600; padding: 5px 10px; border-radius: 20px;
+      background: rgba(52, 211, 153, 0.12); border: 1px solid rgba(52, 211, 153, 0.35);
+      color: var(--income); cursor: pointer;
+    }
+    .sync-badge.pending {
+      background: rgba(251, 191, 36, 0.12); border-color: rgba(251, 191, 36, 0.4); color: var(--warning);
+    }
+    .sync-badge.offline {
+      background: var(--bg-card); border-color: var(--border); color: var(--text-dim);
+    }
+
+    /* Views */
+    .view { display: none; padding: 16px; animation: fadeIn 0.18s ease; }
+    .view.active { display: block; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* Hero Balance Card */
+    .hero-card {
+      background: linear-gradient(145deg, #102442 0%, #0A1426 100%);
+      border: 1px solid rgba(56, 189, 248, 0.45);
+      box-shadow: 0 10px 28px var(--primary-glow);
+      border-radius: 22px; padding: 18px; margin-bottom: 16px;
+    }
+    .hero-top { display: flex; justify-content: space-between; align-items: center; }
+    .hero-label { font-size: 12px; color: var(--text-muted); font-weight: 600; }
+    .eye-btn {
+      background: rgba(255,255,255,0.06); border: 1px solid var(--border); color: var(--primary);
+      padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; cursor: pointer;
+    }
+    .hero-amount { font-size: 30px; font-weight: 800; margin: 8px 0 14px; letter-spacing: -0.5px; }
+
+    /* Budget Progress Bar */
+    .budget-bar-bg { width: 100%; height: 7px; background: rgba(255,255,255,0.08); border-radius: 99px; overflow: hidden; margin-bottom: 10px; }
+    .budget-bar-fill { height: 100%; width: 0%; background: var(--primary); transition: width 0.3s ease, background 0.3s ease; }
+    .hero-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 12px; }
+    .stat-box span { display: block; font-size: 11px; color: var(--text-muted); }
+    .stat-box strong { font-size: 14px; margin-top: 2px; display: block; }
+    .txt-in { color: var(--income); }
+    .txt-out { color: var(--expense); }
+
+    /* Section Title */
+    .section-title {
+      font-size: 12px; font-weight: 700; color: var(--text-muted); letter-spacing: 0.6px;
+      margin: 16px 0 10px; display: flex; justify-content: space-between; align-items: center;
+    }
+    .link-btn { background: none; border: none; color: var(--primary); font-size: 12px; font-weight: 600; cursor: pointer; }
+
+    /* Wallets Carousel */
+    .wallet-scroll { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none; }
+    .wallet-scroll::-webkit-scrollbar { display: none; }
+    .wallet-card {
+      min-width: 142px; background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 16px; padding: 14px; flex-shrink: 0;
+    }
+    .wallet-name { font-size: 12px; color: var(--text-muted); margin-bottom: 6px; display: flex; align-items: center; gap: 6px; }
+    .wallet-dot { width: 8px; height: 8px; border-radius: 50%; }
+    .wallet-bal { font-size: 15px; font-weight: 700; }
+
+    /* Kasbon Summary */
+    .kasbon-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .mini-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; padding: 13px; }
+    .mini-card small { font-size: 11px; color: var(--text-muted); display: block; }
+    .mini-card strong { font-size: 15px; margin-top: 4px; display: block; }
+
+    /* Lists */
+    .list-stack { display: flex; flex-direction: column; gap: 10px; }
+    .item-card {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 16px; padding: 13px 14px;
+      display: flex; justify-content: space-between; align-items: center; gap: 10px;
+    }
+    .item-left { flex: 1; min-width: 0; }
+    .item-title { font-size: 14px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .item-sub { font-size: 11px; color: var(--text-dim); margin-top: 3px; }
+    .item-right { text-align: right; flex-shrink: 0; }
+    .item-amt { font-size: 14px; font-weight: 700; }
+    .item-actions { display: flex; gap: 6px; justify-content: flex-end; margin-top: 6px; }
+    .chip-btn {
+      font-size: 10px; padding: 3px 8px; border-radius: 6px;
+      background: var(--bg-elevated); border: 1px solid var(--border); color: var(--text-muted); cursor: pointer;
+    }
+
+    /* Form Controls */
+    input, select {
+      width: 100%; background: var(--bg-card); border: 1px solid var(--border);
+      color: var(--text-main); padding: 12px 14px; border-radius: 12px;
+      font-size: 15px; outline: none; margin-bottom: 11px;
+    }
+    input:focus, select:focus { border-color: var(--primary); }
+    .btn {
+      width: 100%; padding: 13px; border: none; border-radius: 12px;
+      font-weight: 700; font-size: 15px; cursor: pointer;
+    }
+    .btn-primary { background: var(--primary); color: #041221; box-shadow: 0 4px 16px var(--primary-glow); }
+    .btn-outline { background: var(--bg-card); border: 1px solid var(--border); color: var(--text-main); }
+    .btn-sm { padding: 6px 11px; font-size: 12px; border-radius: 8px; width: auto; }
+
+    /* Mini Calculator Bar inside Modal */
+    .calc-bar { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin: -4px 0 12px; }
+    .calc-key {
+      background: var(--bg-card); border: 1px solid var(--border); color: var(--primary);
+      padding: 8px; border-radius: 10px; font-weight: 800; font-size: 16px; cursor: pointer;
+    }
+    .calc-key.eq { background: var(--primary); color: #041221; }
+
+    /* Category Quick Chips */
+    .cat-grid { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 11px; }
+    .cat-chip {
+      padding: 6px 11px; border-radius: 20px; font-size: 12px; font-weight: 600;
+      background: var(--bg-card); border: 1px solid var(--border); color: var(--text-muted); cursor: pointer;
+    }
+    .cat-chip.selected { background: rgba(56, 189, 248, 0.18); border-color: var(--primary); color: var(--primary); }
+
+    /* Filter Pills */
+    .filter-row { display: flex; gap: 8px; margin-bottom: 12px; }
+    .filter-pill {
+      flex: 1; padding: 8px; text-align: center; border-radius: 10px; font-size: 12px; font-weight: 600;
+      background: var(--bg-card); border: 1px solid var(--border); color: var(--text-muted); cursor: pointer;
+    }
+    .filter-pill.active { background: var(--primary); color: #041221; border-color: var(--primary); }
+
+    /* Bottom Navigation */
+    .bottom-nav {
+      position: fixed; bottom: 0; left: 0; right: 0;
+      height: 68px;
+      background: var(--bg-card);
+      border-top: 1px solid var(--border);
+      display: grid; grid-template-columns: 1fr 1fr 64px 1fr 1fr;
+      align-items: center; z-index: 30;
+    }
+    .nav-btn {
+      background: none; border: none; color: var(--text-dim); font-size: 11px;
+      display: flex; flex-direction: column; align-items: center; gap: 4px; cursor: pointer;
+    }
+    .nav-btn.active { color: var(--primary); font-weight: 700; }
+    .fab {
+      width: 54px; height: 54px; border-radius: 50%;
+      background: var(--primary); color: #041221;
+      border: 4px solid var(--bg-main); font-size: 28px; font-weight: 800;
+      display: flex; align-items: center; justify-content: center;
+      margin: -26px auto 0; box-shadow: 0 6px 22px var(--primary-glow); cursor: pointer;
+    }
+
+    /* Modal Sheet */
+    .modal {
+      display: none; position: fixed; inset: 0; background: rgba(2, 6, 15, 0.82);
+      z-index: 60; align-items: flex-end; justify-content: center;
+    }
+    .modal.open { display: flex; }
+    .modal-sheet {
+      background: var(--bg-elevated); width: 100%; max-width: 520px;
+      border-radius: 24px 24px 0 0;
+      padding: 20px 18px 24px;
+      border-top: 1px solid var(--primary);
+      max-height: 92vh; overflow-y: auto;
+      animation: slideUp 0.2s ease;
+    }
+    @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+    .type-tabs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 14px; }
+    .type-tab {
+      padding: 9px 4px; font-size: 12px; font-weight: 700; text-align: center;
+      background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; color: var(--text-muted); cursor: pointer;
+    }
+    .type-tab.active { background: var(--primary); color: #041221; border-color: var(--primary); }
+
+    .setting-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; padding: 14px; margin-bottom: 12px; }
+    .setting-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 10px; }
+    .setting-row:last-child { margin-bottom: 0; }
+    .empty-state { text-align: center; padding: 28px 16px; color: var(--text-dim); font-size: 13px; }
+  </style>
+</head>
+<body>
+
+  <!-- LAYAR KUNCI PIN 4-DIGIT -->
+  <div id="pinOverlay">
+    <img src="icon.svg" alt="Sakuin" style="width:54px; height:54px; margin-bottom:12px;" />
+    <h2 style="font-size:18px;">Masukkan PIN Sakuin</h2>
+    <div class="pin-dots" id="pinDots">
+      <div class="pin-dot"></div><div class="pin-dot"></div><div class="pin-dot"></div><div class="pin-dot"></div>
+    </div>
+    <div class="numpad">
+      <button class="num-btn" onclick="pressPin('1')">1</button>
+      <button class="num-btn" onclick="pressPin('2')">2</button>
+      <button class="num-btn" onclick="pressPin('3')">3</button>
+      <button class="num-btn" onclick="pressPin('4')">4</button>
+      <button class="num-btn" onclick="pressPin('5')">5</button>
+      <button class="num-btn" onclick="pressPin('6')">6</button>
+      <button class="num-btn" onclick="pressPin('7')">7</button>
+      <button class="num-btn" onclick="pressPin('8')">8</button>
+      <button class="num-btn" onclick="pressPin('9')">9</button>
+      <button class="num-btn" onclick="clearPin()" style="font-size:14px;">Hapus</button>
+      <button class="num-btn" onclick="pressPin('0')">0</button>
+      <button class="num-btn" onclick="backspacePin()">⌫</button>
+    </div>
+  </div>
+
+  <!-- HEADER -->
+  <header>
+    <div class="brand">
+      <img src="icon.svg" alt="Sakuin" />
+      <h1>Sakuin</h1>
+    </div>
+    <div class="sync-badge offline" id="syncStatus" onclick="syncPendingQueue()">Sheet Belum Diatur</div>
+  </header>
+
+  <!-- VIEW 1: BERANDA -->
+  <section id="view-home" class="view active">
+    <div class="hero-card">
+      <div class="hero-top">
+        <span class="hero-label">Total Saldo Bersih</span>
+        <button class="eye-btn" id="privacyBtn" onclick="togglePrivacy()">👁 Sembunyikan</button>
+      </div>
+      <div class="hero-amount" id="totalBalance">Rp 0</div>
+
+      <div class="budget-bar-bg"><div class="budget-bar-fill" id="budgetBar"></div></div>
+      <div style="display:flex; justify-content:space-between; font-size:11px; color:var(--text-muted); margin-bottom:10px;">
+        <span id="budgetUsedLabel">Terpakai: Rp 0</span>
+        <span id="budgetRemLabel">Limit: Belum diatur</span>
+      </div>
+
+      <div class="hero-stats">
+        <div class="stat-box">
+          <span>Pemasukan Bulan Ini</span>
+          <strong class="txt-in" id="monthIncome">Rp 0</strong>
+        </div>
+        <div class="stat-box">
+          <span>Pengeluaran Bulan Ini</span>
+          <strong class="txt-out" id="monthExpense">Rp 0</strong>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-title">
+      <span>DOMPET SAYA</span>
+      <button class="link-btn" onclick="addNewWallet()">+ Tambah Dompet</button>
+    </div>
+    <div class="wallet-scroll" id="walletList"></div>
+
+    <div class="section-title"><span>RINGKASAN KASBON</span></div>
+    <div class="kasbon-grid">
+      <div class="mini-card">
+        <small>Piutang (Uang di Orang)</small>
+        <strong class="txt-in" id="totalReceivable">Rp 0</strong>
+      </div>
+      <div class="mini-card">
+        <small>Utang (Harus Dibayar)</small>
+        <strong class="txt-out" id="totalPayable">Rp 0</strong>
+      </div>
+    </div>
+
+    <div class="section-title"><span>TRANSAKSI TERAKHIR</span></div>
+    <div class="list-stack" id="recentTxList"></div>
+  </section>
+
+  <!-- VIEW 2: RIWAYAT & ANALISIS -->
+  <section id="view-history" class="view">
+    <input type="text" id="searchTx" placeholder="Cari transaksi, kategori, atau catatan..." oninput="renderHistory()" />
+    <div class="filter-row">
+      <div class="filter-pill active" onclick="setPeriod('all', this)">Semua</div>
+      <div class="filter-pill" onclick="setPeriod('today', this)">Hari Ini</div>
+      <div class="filter-pill" onclick="setPeriod('week', this)">7 Hari</div>
+      <div class="filter-pill" onclick="setPeriod('month', this)">Bulan Ini</div>
+    </div>
+    <div class="setting-card" id="categorySummaryCard" style="display:none;">
+      <div style="font-size:12px; font-weight:700; color:var(--text-muted); margin-bottom:8px;">PENGELUARAN TERBESAR</div>
+      <div id="categoryBars" style="display:flex; flex-direction:column; gap:8px;"></div>
+    </div>
+    <div class="list-stack" id="fullTxList"></div>
+  </section>
+
+  <!-- VIEW 3: KASBON -->
+  <section id="view-kasbon" class="view">
+    <div class="section-title"><span>DAFTAR UTANG & PIUTANG AKTIF</span></div>
+    <div class="list-stack" id="kasbonList"></div>
+  </section>
+
+  <!-- VIEW 4: PENGATURAN & SINKRONISASI -->
+  <section id="view-settings" class="view">
+    <div class="section-title"><span>INTEGRASI GOOGLE SHEETS & WHATSAPP</span></div>
+    <div class="setting-card">
+      <label style="font-size:12px; color:var(--text-muted); display:block; margin-bottom:6px;">URL Web App Google Apps Script</label>
+      <input type="url" id="cfgSheetUrl" placeholder="https://script.google.com/macros/s/.../exec" />
+
+      <label style="font-size:12px; color:var(--text-muted); display:block; margin-bottom:6px;">Nomor WhatsApp Pribadi (Awali 62)</label>
+      <input type="tel" id="cfgWaNumber" placeholder="6281234567890" />
+
+      <div class="setting-row" style="margin-top:6px;">
+        <span style="font-size:13px;">Auto-Buka WA setelah catat transaksi</span>
+        <input type="checkbox" id="cfgAutoWa" style="width:20px; height:20px; margin:0;" />
+      </div>
+      <button class="btn btn-primary" style="margin-top:12px;" onclick="saveIntegrations()">Simpan Pengaturan Cloud & WA</button>
+    </div>
+
+    <div class="section-title"><span>LIMIT ANGGARAN & KEAMANAN PIN</span></div>
+    <div class="setting-card">
+      <label style="font-size:12px; color:var(--text-muted); display:block; margin-bottom:6px;">Limit Pengeluaran Bulanan (Rp)</label>
+      <input type="number" id="cfgBudgetLimit" placeholder="Contoh: 2000000" inputmode="numeric" />
+
+      <label style="font-size:12px; color:var(--text-muted); display:block; margin-bottom:6px;">Kunci PIN 4-Digit (Kosongkan untuk matikan)</label>
+      <input type="password" id="cfgPinCode" maxlength="4" placeholder="4 digit angka" inputmode="numeric" />
+
+      <button class="btn btn-outline" onclick="saveSecurityAndBudget()">Simpan Limit & PIN</button>
+    </div>
+
+    <div class="section-title"><span>CADANGAN DATA OFFLINE</span></div>
+    <div style="display:flex; flex-direction:column; gap:10px;">
+      <button class="btn btn-outline" onclick="exportBackup()">Unduh Cadangan Data (JSON)</button>
+      <label class="btn btn-outline" style="text-align:center; display:block; cursor:pointer;">
+        Pulihkan Data dari File JSON
+        <input type="file" accept=".json" style="display:none;" onchange="importBackup(event)" />
+      </label>
+      <button class="btn btn-outline" style="border-color:var(--expense); color:var(--expense); margin-top:8px;" onclick="resetAllData()">Reset Semua Data</button>
+    </div>
+  </section>
+
+  <!-- BOTTOM NAVIGATION -->
+  <nav class="bottom-nav">
+    <button class="nav-btn active" onclick="switchTab('home', this)"><span>Beranda</span></button>
+    <button class="nav-btn" onclick="switchTab('history', this)"><span>Riwayat</span></button>
+    <button class="fab" onclick="openModal()">+</button>
+    <button class="nav-btn" onclick="switchTab('kasbon', this)"><span>Kasbon</span></button>
+    <button class="nav-btn" onclick="switchTab('settings', this)"><span>Pengaturan</span></button>
+  </nav>
+
+  <!-- MODAL QUICK-ADD + BUILT-IN CALCULATOR -->
+  <div class="modal" id="addModal" onclick="if(event.target===this) closeModal()">
+    <div class="modal-sheet">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+        <strong id="modalTitle" style="font-size:16px;">Catat Transaksi Baru</strong>
+        <button class="link-btn" onclick="closeModal()">Tutup</button>
+      </div>
+
+      <div class="type-tabs" id="typeTabsRow">
+        <div class="type-tab active" onclick="setTxType('expense', this)">Keluar</div>
+        <div class="type-tab" onclick="setTxType('income', this)">Masuk</div>
+        <div class="type-tab" onclick="setTxType('transfer', this)">Transfer</div>
+        <div class="type-tab" onclick="setTxType('kasbon', this)">Kasbon</div>
+      </div>
+
+      <!-- Input Nominal + Kalkulator Cepat -->
+      <input type="text" id="inpAmount" placeholder="Nominal atau hitung (mis: 15000+5000)" inputmode="decimal" />
+      <div class="calc-bar">
+        <button type="button" class="calc-key" onclick="appendCalc('+')">+</button>
+        <button type="button" class="calc-key" onclick="appendCalc('-')">−</button>
+        <button type="button" class="calc-key" onclick="appendCalc('*')">×</button>
+        <button type="button" class="calc-key" onclick="appendCalc('/')">÷</button>
+        <button type="button" class="calc-key eq" onclick="evalCalc()">=</button>
+      </div>
+
+      <!-- Form Umum -->
+      <div id="standardFields">
+        <select id="inpWallet"></select>
+        <select id="inpToWallet" style="display:none;"></select>
+        <div id="categoryBlock">
+          <div class="cat-grid" id="quickCatChips"></div>
+          <input type="text" id="inpCategory" placeholder="Atau ketik nama kategori..." />
+        </div>
+        <input type="text" id="inpNote" placeholder="Catatan singkat (opsional)" />
+      </div>
+
+      <!-- Form Kasbon -->
+      <div id="kasbonFields" style="display:none;">
+        <select id="inpKasbonType">
+          <option value="receivable">Piutang (Orang pinjam uang kita)</option>
+          <option value="payable">Utang (Kita pinjam uang orang)</option>
+        </select>
+        <input type="text" id="inpPerson" placeholder="Nama orang (mis: Rian)" />
+        <select id="inpKasbonWallet"></select>
+        <input type="text" id="inpKasbonNote" placeholder="Keterangan pinjaman" />
+      </div>
+
+      <button class="btn btn-primary" onclick="saveEntry()">Simpan Transaksi</button>
+    </div>
+  </div>
+
+  <script>
+    const STORAGE_KEY = 'sakuin_v1_data';
+    let currentType = 'expense';
+    let editingTxId = null;
+    let currentPeriod = 'all';
+    let pinBuffer = '';
+
+    const quickCategories = ['Makan & Minum', 'Bensin & Parkir', 'Belanja Harian', 'Kuota & Tagihan', 'Gaji / Bonus', 'Lainnya'];
+
+    const defaultState = {
+      wallets: [
+        { id: 'w_cash', name: 'Tunai', balance: 0, color: '#34D399' },
+        { id: 'w_ewallet', name: 'E-Wallet', balance: 0, color: '#38BDF8' },
+        { id: 'w_bank', name: 'Rekening Bank', balance: 0, color: '#818CF8' }
+      ],
+      transactions: [],
+      debts: [],
+      syncQueue: [],
+      settings: {
+        sheetUrl: '',
+        waNumber: '',
+        autoWa: false,
+        budgetLimit: 0,
+        pinCode: '',
+        privacyMode: false
+      }
+    };
+
+    let state = JSON.parse(localStorage.getItem(STORAGE_KEY)) || defaultState;
+    if (!state.settings) state.settings = defaultState.settings;
+    if (!state.syncQueue) state.syncQueue = [];
+
+    function saveState() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      renderAll();
+    }
+
+    const formatRp = (num) => {
+      if (state.settings.privacyMode) return 'Rp ••••••';
+      return 'Rp ' + Number(num || 0).toLocaleString('id-ID');
+    };
+
+    const rawRp = (num) => 'Rp ' + Number(num || 0).toLocaleString('id-ID');
+
+    /* --- 1. PIN LOCK --- */
+    function initPinCheck() {
+      if (state.settings.pinCode && state.settings.pinCode.length === 4) {
+        document.getElementById('pinOverlay').classList.add('active');
+      }
+    }
+    function pressPin(digit) {
+      if (pinBuffer.length >= 4) return;
+      pinBuffer += digit;
+      updatePinDots();
+      if (pinBuffer.length === 4) {
+        if (pinBuffer === state.settings.pinCode) {
+          document.getElementById('pinOverlay').classList.remove('active');
+          pinBuffer = '';
+          updatePinDots();
+        } else {
+          alert('PIN salah!');
+          pinBuffer = '';
+          updatePinDots();
+        }
+      }
+    }
+    function backspacePin() { pinBuffer = pinBuffer.slice(0, -1); updatePinDots(); }
+    function clearPin() { pinBuffer = ''; updatePinDots(); }
+    function updatePinDots() {
+      document.querySelectorAll('#pinDots .pin-dot').forEach((dot, idx) => {
+        dot.classList.toggle('filled', idx < pinBuffer.length);
+      });
+    }
+
+    /* --- 2. PRIVACY MODE --- */
+    function togglePrivacy() {
+      state.settings.privacyMode = !state.settings.privacyMode;
+      saveState();
+    }
+
+    /* --- 3. BUILT-IN CALCULATOR --- */
+    function appendCalc(op) {
+      const inp = document.getElementById('inpAmount');
+      inp.value = inp.value + op;
+      inp.focus();
+    }
+    function evalCalc() {
+      const inp = document.getElementById('inpAmount');
+      const expr = inp.value.replace(/[^0-9+\-*/.]/g, '');
+      if (!expr) return 0;
+      try {
+        const res = Math.round(Function('"use strict";return (' + expr + ')')());
+        if (!isNaN(res) && isFinite(res)) {
+          inp.value = res;
+          return res;
+        }
+      } catch {}
+      return parseInt(inp.value, 10) || 0;
+    }
+
+    /* --- 4. NAVIGATION & MODAL --- */
+    function switchTab(tab, el) {
+      document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+      document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+      document.getElementById('view-' + tab).classList.add('active');
+      el.classList.add('active');
+    }
+
+    function openModal(editTx = null) {
+      editingTxId = editTx ? editTx.id : null;
+      document.getElementById('modalTitle').textContent = editTx ? 'Edit Transaksi' : 'Catat Transaksi Baru';
+      populateWalletSelects();
+      renderCategoryChips();
+
+      if (editTx) {
+        setTxType(editTx.type, document.querySelectorAll('.type-tab')[editTx.type === 'income' ? 1 : 0]);
+        document.getElementById('typeTabsRow').style.display = 'none';
+        document.getElementById('inpAmount').value = editTx.amount;
+        document.getElementById('inpWallet').value = editTx.walletId;
+        document.getElementById('inpCategory').value = editTx.category;
+        document.getElementById('inpNote').value = editTx.note || '';
+      } else {
+        document.getElementById('typeTabsRow').style.display = 'grid';
+        setTxType('expense', document.querySelector('.type-tab'));
+        document.getElementById('inpAmount').value = '';
+        document.getElementById('inpCategory').value = '';
+        document.getElementById('inpNote').value = '';
+        document.getElementById('inpPerson').value = '';
+        document.getElementById('inpKasbonNote').value = '';
+      }
+      document.getElementById('addModal').classList.add('open');
+    }
+
+    function closeModal() {
+      editingTxId = null;
+      document.getElementById('addModal').classList.remove('open');
+    }
+
+    function setTxType(type, el) {
+      currentType = type;
+      document.querySelectorAll('.type-tab').forEach(t => t.classList.remove('active'));
+      if (el) el.classList.add('active');
+
+      const isKasbon = type === 'kasbon';
+      document.getElementById('standardFields').style.display = isKasbon ? 'none' : 'block';
+      document.getElementById('kasbonFields').style.display = isKasbon ? 'block' : 'none';
+      document.getElementById('inpToWallet').style.display = type === 'transfer' ? 'block' : 'none';
+      document.getElementById('categoryBlock').style.display = type === 'transfer' ? 'none' : 'block';
+    }
+
+    function renderCategoryChips() {
+      document.getElementById('quickCatChips').innerHTML = quickCategories.map(c =>
+        `<div class="cat-chip" onclick="selectCatChip('${c}', this)">${c}</div>`
+      ).join('');
+    }
+
+    function selectCatChip(cat, el) {
+      document.querySelectorAll('.cat-chip').forEach(c => c.classList.remove('selected'));
+      el.classList.add('selected');
+      document.getElementById('inpCategory').value = cat;
+    }
+
+    function populateWalletSelects() {
+      const opts = state.wallets.map(w => `<option value="${w.id}">${w.name} (${rawRp(w.balance)})</option>`).join('');
+      document.getElementById('inpWallet').innerHTML = opts;
+      document.getElementById('inpToWallet').innerHTML = opts;
+      document.getElementById('inpKasbonWallet').innerHTML = opts;
+    }
+
+    /* --- 5. MULTI-WALLET ADD --- */
+    function addNewWallet() {
+      const name = prompt('Nama dompet baru (misal: SeaBank, Dana, Tabungan):');
+      if (!name || !name.trim()) return;
+      const initBal = parseInt(prompt('Saldo awal dompet ini (Rp):', '0'), 10) || 0;
+      const colors = ['#38BDF8', '#34D399', '#FBBF24', '#F472B6', '#A78BFA'];
+      state.wallets.push({
+        id: 'w_' + Date.now(),
+        name: name.trim(),
+        balance: initBal,
+        color: colors[state.wallets.length % colors.length]
+      });
+      saveState();
+    }
+
+    /* --- 6. SAVE, EDIT & DELETE WITH AUTO BALANCE CORRECTION --- */
+    function saveEntry() {
+      const amount = evalCalc();
+      if (!amount || amount <= 0) return alert('Masukkan nominal yang valid.');
+      const now = new Date().toISOString();
+
+      if (editingTxId) {
+        const idx = state.transactions.findIndex(t => t.id === editingTxId);
+        if (idx !== -1) {
+          const oldTx = state.transactions[idx];
+          const oldWallet = state.wallets.find(w => w.id === oldTx.walletId);
+          if (oldWallet) {
+            oldWallet.balance += (oldTx.type === 'income' ? -oldTx.amount : oldTx.amount);
+          }
+
+          const newWalletId = document.getElementById('inpWallet').value;
+          const newWallet = state.wallets.find(w => w.id === newWalletId);
+          const newCat = document.getElementById('inpCategory').value.trim() || oldTx.category;
+          const newNote = document.getElementById('inpNote').value.trim();
+
+          if (newWallet) {
+            newWallet.balance += (oldTx.type === 'income' ? amount : -amount);
+          }
+
+          state.transactions[idx] = {
+            ...oldTx,
+            amount,
+            walletId: newWalletId,
+            category: newCat,
+            note: newNote
+          };
+          closeModal();
+          saveState();
+          return;
+        }
+      }
+
+      if (currentType === 'kasbon') {
+        const kType = document.getElementById('inpKasbonType').value;
+        const person = document.getElementById('inpPerson').value.trim() || 'Tanpa Nama';
+        const walletId = document.getElementById('inpKasbonWallet').value;
+        const note = document.getElementById('inpKasbonNote').value.trim() || 'Pinjaman';
+        const wallet = state.wallets.find(w => w.id === walletId);
+
+        if (wallet) wallet.balance += (kType === 'receivable' ? -amount : amount);
+
+        const debtObj = {
+          id: 'db_' + Date.now(),
+          type: kType,
+          person,
+          totalAmount: amount,
+          paidAmount: 0,
+          status: 'active',
+          note,
+          date: now
+        };
+        state.debts.unshift(debtObj);
+
+        const txObj = {
+          id: 'tx_' + Date.now(),
+          type: kType === 'receivable' ? 'expense' : 'income',
+          amount,
+          walletId,
+          category: (kType === 'receivable' ? 'Piutang: ' : 'Utang: ') + person,
+          note,
+          date: now,
+          synced: false
+        };
+        state.transactions.unshift(txObj);
+
+        enqueueSync({ ...txObj, walletName: wallet ? wallet.name : '', remainingBalance: wallet ? wallet.balance : 0, targetSheet: 'Transaksi' });
+        enqueueSync({ ...debtObj, remaining: amount, targetSheet: 'Kasbon' });
+
+        closeModal();
+        saveState();
+        triggerPostActions(txObj, wallet);
+        return;
+      }
+
+      const walletId = document.getElementById('inpWallet').value;
+      const wallet = state.wallets.find(w => w.id === walletId);
+      const note = document.getElementById('inpNote').value.trim();
+
+      if (currentType === 'transfer') {
+        const toId = document.getElementById('inpToWallet').value;
+        if (walletId === toId) return alert('Pilih dompet tujuan yang berbeda.');
+        const toWallet = state.wallets.find(w => w.id === toId);
+        wallet.balance -= amount;
+        toWallet.balance += amount;
+
+        const txObj = {
+          id: 'tx_' + Date.now(),
+          type: 'transfer',
+          amount,
+          walletId,
+          category: `Transfer ke ${toWallet.name}`,
+          note: note || `Dari ${wallet.name}`,
+          date: now,
+          synced: false
+        };
+        state.transactions.unshift(txObj);
+        enqueueSync({ ...txObj, walletName: wallet.name, remainingBalance: wallet.balance, targetSheet: 'Transaksi' });
+        closeModal();
+        saveState();
+        triggerPostActions(txObj, wallet);
+      } else {
+        const cat = document.getElementById('inpCategory').value.trim() || (currentType === 'income' ? 'Pemasukan' : 'Pengeluaran');
+        wallet.balance += (currentType === 'income' ? amount : -amount);
+
+        const txObj = {
+          id: 'tx_' + Date.now(),
+          type: currentType,
+          amount,
+          walletId,
+          category: cat,
+          note,
+          date: now,
+          synced: false
+        };
+        state.transactions.unshift(txObj);
+        enqueueSync({ ...txObj, walletName: wallet.name, remainingBalance: wallet.balance, targetSheet: 'Transaksi' });
+        closeModal();
+        saveState();
+        triggerPostActions(txObj, wallet);
+      }
+    }
+
+    function deleteTx(id) {
+      if (!confirm('Hapus transaksi ini? Saldo dompet akan otomatis dikembalikan.')) return;
+      const idx = state.transactions.findIndex(t => t.id === id);
+      if (idx === -1) return;
+      const tx = state.transactions[idx];
+      const w = state.wallets.find(x => x.id === tx.walletId);
+      if (w && tx.type !== 'transfer') {
+        w.balance += (tx.type === 'income' ? -tx.amount : tx.amount);
+      }
+      state.transactions.splice(idx, 1);
+      saveState();
+    }
+
+    function payDebt(id) {
+      const debt = state.debts.find(d => d.id === id);
+      if (!debt) return;
+      const remaining = debt.totalAmount - debt.paidAmount;
+      const input = prompt(`Sisa ${debt.person}: ${rawRp(remaining)}\nMasukkan nominal bayar/cicilan:`, remaining);
+      const pay = parseInt(input, 10);
+      if (!pay || pay <= 0 || pay > remaining) return;
+
+      debt.paidAmount += pay;
+      if (debt.paidAmount >= debt.totalAmount) debt.status = 'settled';
+
+      const mainWallet = state.wallets[0];
+      mainWallet.balance += (debt.type === 'receivable' ? pay : -pay);
+
+      const txObj = {
+        id: 'tx_' + Date.now(),
+        type: debt.type === 'receivable' ? 'income' : 'expense',
+        amount: pay,
+        walletId: mainWallet.id,
+        category: debt.type === 'receivable' ? `Cicilan dari ${debt.person}` : `Bayar ke ${debt.person}`,
+        note: debt.status === 'settled' ? 'Lunas' : 'Cicilan Kasbon',
+        date: new Date().toISOString(),
+        synced: false
+      };
+      state.transactions.unshift(txObj);
+
+      enqueueSync({ ...txObj, walletName: mainWallet.name, remainingBalance: mainWallet.balance, targetSheet: 'Transaksi' });
+      enqueueSync({ ...debt, remaining: debt.totalAmount - debt.paidAmount, targetSheet: 'Kasbon' });
+      saveState();
+    }
+
+    /* --- 7. GOOGLE SHEETS OFFLINE QUEUE SYNC --- */
+    function enqueueSync(payload) {
+      if (!state.settings.sheetUrl) return;
+      state.syncQueue.push(payload);
+      saveState();
+      syncPendingQueue();
+    }
+
+    async function syncPendingQueue() {
+      const badge = document.getElementById('syncStatus');
+      if (!state.settings.sheetUrl) {
+        badge.className = 'sync-badge offline';
+        badge.textContent = 'Sheet Belum Diatur';
+        return;
+      }
+      if (state.syncQueue.length === 0) {
+        badge.className = 'sync-badge';
+        badge.textContent = 'Sheets Synced ✓';
+        return;
+      }
+      if (!navigator.onLine) {
+        badge.className = 'sync-badge pending';
+        badge.textContent = `Pending (${state.syncQueue.length})`;
+        return;
+      }
+
+      badge.className = 'sync-badge pending';
+      badge.textContent = `Syncing (${state.syncQueue.length})...`;
+
+      while (state.syncQueue.length > 0) {
+        const item = state.syncQueue[0];
+        try {
+          await fetch(state.settings.sheetUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+            body: JSON.stringify(item)
+          });
+          const tx = state.transactions.find(t => t.id === item.id);
+          if (tx) tx.synced = true;
+          state.syncQueue.shift();
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+        } catch {
+          badge.className = 'sync-badge pending';
+          badge.textContent = `Pending (${state.syncQueue.length})`;
+          return;
+        }
+      }
+      renderAll();
+    }
+
+    window.addEventListener('online', syncPendingQueue);
+
+    /* --- 8. SEND TO OWN WHATSAPP --- */
+    function sendTxToWhatsApp(tx, wallet) {
+      const phone = (state.settings.waNumber || '').replace(/[^0-9]/g, '');
+      if (!phone) return alert('Atur nomor WhatsApp pribadi dulu di menu Pengaturan.');
+      const tipeLabel = tx.type === 'income' ? 'Pemasukan (+)' : (tx.type === 'expense' ? 'Pengeluaran (-)' : 'Transfer');
+      const waktu = new Date(tx.date).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' });
+      const msg = [
+        `🧾 *REKAP SAKUIN*`,
+        `• Tipe: ${tipeLabel}`,
+        `• Kategori: ${tx.category}`,
+        `• Nominal: ${rawRp(tx.amount)}`,
+        `• Dompet: ${wallet ? wallet.name : '-'}`,
+        tx.note ? `• Catatan: ${tx.note}` : null,
+        `• Sisa Saldo Dompet: ${wallet ? rawRp(wallet.balance) : '-'}`,
+        `• Waktu: ${waktu}`
+      ].filter(Boolean).join('\n');
+
+      window.location.href = `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`;
+    }
+
+    function triggerPostActions(tx, wallet) {
+      if (state.settings.autoWa && state.settings.waNumber) {
+        setTimeout(() => sendTxToWhatsApp(tx, wallet), 250);
+      }
+    }
+
+    /* --- 9. RENDER UI & ANALYTICS --- */
+    function setPeriod(period, el) {
+      currentPeriod = period;
+      document.querySelectorAll('.filter-pill').forEach(p => p.classList.remove('active'));
+      el.classList.add('active');
+      renderHistory();
+    }
+
+    function renderTxCard(tx) {
+      const w = state.wallets.find(x => x.id === tx.walletId);
+      const sign = tx.type === 'income' ? '+' : (tx.type === 'expense' ? '-' : '');
+      const cls = tx.type === 'income' ? 'txt-in' : (tx.type === 'expense' ? 'txt-out' : '');
+      const d = new Date(tx.date).toLocaleDateString('id-ID', { day: '2-digit', month: 'short' });
+      const syncDot = tx.synced ? '✓' : '•';
+      return `
+        <div class="item-card">
+          <div class="item-left">
+            <div class="item-title">${tx.category}</div>
+            <div class="item-sub">${d} • ${w ? w.name : ''} ${tx.note ? '• ' + tx.note : ''} ${syncDot}</div>
+          </div>
+          <div class="item-right">
+            <div class="item-amt ${cls}">${sign}${formatRp(tx.amount)}</div>
+            <div class="item-actions">
+              <button class="chip-btn" onclick='sendTxToWhatsApp(${JSON.stringify(tx)}, ${JSON.stringify(w || null)})'>WA</button>
+              ${tx.type !== 'transfer' ? `<button class="chip-btn" onclick='openModal(${JSON.stringify(tx)})'>Edit</button>` : ''}
+              <button class="chip-btn" onclick="deleteTx('${tx.id}')">Hapus</button>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderHistory() {
+      const q = document.getElementById('searchTx').value.toLowerCase();
+      const now = new Date();
+      const filtered = state.transactions.filter(t => {
+        const matchText = t.category.toLowerCase().includes(q) || (t.note && t.note.toLowerCase().includes(q));
+        if (!matchText) return false;
+        const d = new Date(t.date);
+        if (currentPeriod === 'today') return d.toDateString() === now.toDateString();
+        if (currentPeriod === 'week') return (now - d) <= 7 * 86400000;
+        if (currentPeriod === 'month') return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+        return true;
+      });
+
+      const catMap = {};
+      let totalExp = 0;
+      filtered.filter(t => t.type === 'expense').forEach(t => {
+        catMap[t.category] = (catMap[t.category] || 0) + t.amount;
+        totalExp += t.amount;
+      });
+      const sortedCats = Object.entries(catMap).sort((a, b) => b[1] - a[1]).slice(0, 4);
+      const sumCard = document.getElementById('categorySummaryCard');
+      if (sortedCats.length > 0) {
+        sumCard.style.display = 'block';
+        document.getElementById('categoryBars').innerHTML = sortedCats.map(([cat, val]) => {
+          const pct = Math.round((val / totalExp) * 100);
+          return `
+            <div>
+              <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:3px;">
+                <span>${cat}</span><span>${formatRp(val)} (${pct}%)</span>
+              </div>
+              <div class="budget-bar-bg" style="margin:0; height:5px;">
+                <div class="budget-bar-fill" style="width:${pct}%; background:var(--expense);"></div>
+              </div>
+            </div>
+          `;
+        }).join('');
+      } else {
+        sumCard.style.display = 'none';
+      }
+
+      document.getElementById('fullTxList').innerHTML = filtered.length
+        ? filtered.map(renderTxCard).join('')
+        : '<div class="empty-state">Tidak ada transaksi pada periode ini.</div>';
+    }
+
+    function renderAll() {
+      const isPriv = state.settings.privacyMode;
+      document.getElementById('privacyBtn').textContent = isPriv ? '🙈 Tampilkan' : '👁 Sembunyikan';
+
+      const totalBal = state.wallets.reduce((sum, w) => sum + w.balance, 0);
+      document.getElementById('totalBalance').textContent = formatRp(totalBal);
+
+      const now = new Date();
+      let mIn = 0, mOut = 0;
+      state.transactions.forEach(t => {
+        const d = new Date(t.date);
+        if (d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()) {
+          if (t.type === 'income') mIn += t.amount;
+          if (t.type === 'expense') mOut += t.amount;
+        }
+      });
+      document.getElementById('monthIncome').textContent = formatRp(mIn);
+      document.getElementById('monthExpense').textContent = formatRp(mOut);
+
+      const limit = Number(state.settings.budgetLimit || 0);
+      const bar = document.getElementById('budgetBar');
+      document.getElementById('budgetUsedLabel').textContent = `Terpakai: ${formatRp(mOut)}`;
+      if (limit > 0) {
+        const pct = Math.min(100, Math.round((mOut / limit) * 100));
+        bar.style.width = pct + '%';
+        bar.style.background = pct >= 90 ? 'var(--expense)' : (pct >= 70 ? 'var(--warning)' : 'var(--primary)');
+        document.getElementById('budgetRemLabel').textContent = `Limit: ${formatRp(limit)} (${pct}%)`;
+      } else {
+        bar.style.width = '0%';
+        document.getElementById('budgetRemLabel').textContent = 'Limit: Belum diatur';
+      }
+
+      document.getElementById('walletList').innerHTML = state.wallets.map(w => `
+        <div class="wallet-card">
+          <div class="wallet-name"><span class="wallet-dot" style="background:${w.color}"></span>${w.name}</div>
+          <div class="wallet-bal">${formatRp(w.balance)}</div>
+        </div>
+      `).join('');
+
+      let rec = 0, pay = 0;
+      state.debts.filter(d => d.status === 'active').forEach(d => {
+        const rem = d.totalAmount - d.paidAmount;
+        if (d.type === 'receivable') rec += rem; else pay += rem;
+      });
+      document.getElementById('totalReceivable').textContent = formatRp(rec);
+      document.getElementById('totalPayable').textContent = formatRp(pay);
+
+      const recent = state.transactions.slice(0, 5);
+      document.getElementById('recentTxList').innerHTML = recent.length
+        ? recent.map(renderTxCard).join('')
+        : '<div class="empty-state">Ketuk tombol + di bawah untuk mulai mencatat di Sakuin.</div>';
+
+      const activeDebts = state.debts.filter(d => d.status === 'active');
+      document.getElementById('kasbonList').innerHTML = activeDebts.length
+        ? activeDebts.map(d => {
+            const rem = d.totalAmount - d.paidAmount;
+            return `
+              <div class="item-card">
+                <div class="item-left">
+                  <div class="item-title">${d.person} (${d.type === 'receivable' ? 'Piutang' : 'Utang'})</div>
+                  <div class="item-sub">${d.note} • Terbayar ${formatRp(d.paidAmount)}</div>
+                </div>
+                <div class="item-right">
+                  <div class="item-amt ${d.type === 'receivable' ? 'txt-in' : 'txt-out'}">${formatRp(rem)}</div>
+                  <button class="btn btn-primary btn-sm" style="margin-top:6px;" onclick="payDebt('${d.id}')">Bayar</button>
+                </div>
+              </div>
+            `;
+          }).join('')
+        : '<div class="empty-state">Tidak ada kasbon aktif saat ini.</div>';
+
+      const badge = document.getElementById('syncStatus');
+      if (!state.settings.sheetUrl) {
+        badge.className = 'sync-badge offline';
+        badge.textContent = 'Sheet Belum Diatur';
+      } else if (state.syncQueue.length > 0) {
+        badge.className = 'sync-badge pending';
+        badge.textContent = `Pending (${state.syncQueue.length})`;
+      } else {
+        badge.className = 'sync-badge';
+        badge.textContent = 'Sheets Synced ✓';
+      }
+
+      document.getElementById('cfgSheetUrl').value = state.settings.sheetUrl || '';
+      document.getElementById('cfgWaNumber').value = state.settings.waNumber || '';
+      document.getElementById('cfgAutoWa').checked = !!state.settings.autoWa;
+      document.getElementById('cfgBudgetLimit').value = state.settings.budgetLimit || '';
+      document.getElementById('cfgPinCode').value = state.settings.pinCode || '';
+
+      renderHistory();
+    }
+
+    /* --- 10. SETTINGS & BACKUP --- */
+    function saveIntegrations() {
+      state.settings.sheetUrl = document.getElementById('cfgSheetUrl').value.trim();
+      state.settings.waNumber = document.getElementById('cfgWaNumber').value.trim();
+      state.settings.autoWa = document.getElementById('cfgAutoWa').checked;
+      saveState();
+      syncPendingQueue();
+      alert('Pengaturan Google Sheets & WhatsApp tersimpan!');
+    }
+
+    function saveSecurityAndBudget() {
+      const limit = parseInt(document.getElementById('cfgBudgetLimit').value, 10) || 0;
+      const pin = document.getElementById('cfgPinCode').value.trim();
+      if (pin && !/^\d{4}$/.test(pin)) return alert('PIN harus tepat 4 digit angka.');
+      state.settings.budgetLimit = limit;
+      state.settings.pinCode = pin;
+      saveState();
+      alert('Limit anggaran dan keamanan PIN diperbarui!');
+    }
+
+    function exportBackup() {
+      const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `Sakuin-Backup-${new Date().toISOString().slice(0,10)}.json`;
+      a.click();
+    }
+
+    function importBackup(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        try {
+          const parsed = JSON.parse(ev.target.result);
+          if (parsed.wallets && parsed.transactions) {
+            state = parsed;
+            saveState();
+            alert('Data Sakuin berhasil dipulihkan!');
+          }
+        } catch {
+          alert('File JSON tidak valid.');
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    function resetAllData() {
+      if (confirm('Yakin reset semua saldo, riwayat, dan kasbon?')) {
+        localStorage.removeItem(STORAGE_KEY);
+        state = JSON.parse(JSON.stringify(defaultState));
+        saveState();
+      }
+    }
+
+    initPinCheck();
+    renderAll();
+    if (state.settings.sheetUrl && state.syncQueue.length > 0) syncPendingQueue();
+  </script>
+</body>
+</html>
