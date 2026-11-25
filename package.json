@@ -1,0 +1,16 @@
+{
+  "name": "sakuin",
+  "version": "1.0.0",
+  "description": "Sakuin - Personal Finance & Kasbon Tracker Android",
+  "main": "index.js",
+  "scripts": {
+    "build": "echo 'Sakuin Android assets ready'"
+  },
+  "dependencies": {
+    "@capacitor/android": "6.1.2",
+    "@capacitor/core": "6.1.2"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "6.1.2"
+  }
+}
