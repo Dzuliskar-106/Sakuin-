@@ -1,0 +1,9 @@
+{
+  "appId": "com.diki.sakuin",
+  "appName": "Sakuin",
+  "webDir": "www",
+  "bundledWebRuntime": false,
+  "server": {
+    "androidScheme": "https"
+  }
+}
